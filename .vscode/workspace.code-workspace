@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "./armature_placement",
+		},
+		{
+			"name": "armature_placement",
+			"path": "./armature_placement"
+		}
+	],
+	"settings": { 
+		"python.autoComplete.extraPaths": [
+			"E:/GameAssets/BlenderAPIAutoComplete/blender_autocomplete/3.0"
+		],
+		"python.linting.pylintArgs": [
+			"--init-hook",
+			"import sys; sys.path.append('E:/GameAssets/BlenderAPIAutoComplete/blender_autocomplete/3.0')"
+		],
+		"python.analysis.extraPaths": [
+			"E:/GameAssets/BlenderAPIAutoComplete/blender_autocomplete/3.0"
+		]
+	}
+}
