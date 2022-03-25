@@ -163,15 +163,6 @@ class OBJECT_PT_boneToolsUncategorized(ToolPanel):
         layout.label(text="Parent consecutive bones")
         layout.operator("bone_tool.parent_consecutive_selected_bones")
 
-        layout.label(text="Create spine rig")
-        layout.prop(bone_tool, "flip_start_handles")
-        layout.prop(bone_tool, "flip_end_handles")
-        layout.prop(bone_tool, "preserve_length")
-        if not bone_tool.preserve_length:
-            layout.prop(bone_tool, "handle_length")
-        layout.operator("bone_tool.create_spine_rig")
-        layout.operator("bone_tool.update_spline")
-
 class OBJECT_PT_vertexGroupTools(ToolPanel):
     bl_parent_id = "OBJECT_PT_riggingToolsPanel"
     bl_label = "Vertex Tools"
@@ -226,6 +217,30 @@ class OBJECT_PT_vertexGroupToolsVertexGroupOperations(ToolPanel):
 
         layout.label(text="Replace vertex groups")
         layout.operator("bone_tool.replace_list_vertex_groups")
+
+class OBJECT_PT_spineRiggingTools(ToolPanel):
+    bl_parent_id = "OBJECT_PT_riggingToolsPanel"
+    bl_label = "Spine Rigging Tools"
+
+    def draw(self, context):
+        return
+
+class OBJECT_PT_spineRiggingToolsCreation(ToolPanel):
+    bl_parent_id = "OBJECT_PT_spineRiggingTools"
+    bl_label = "Creation"
+
+    def draw(self, context):
+        layout = self.layout
+        bone_tool = context.scene.bone_tool
+
+        layout.label(text="Create spine rig")
+        layout.prop(bone_tool, "flip_start_handles")
+        layout.prop(bone_tool, "flip_end_handles")
+        layout.prop(bone_tool, "preserve_length")
+        if not bone_tool.preserve_length:
+            layout.prop(bone_tool, "handle_length")
+        layout.operator("bone_tool.create_spine_rig")
+        layout.operator("bone_tool.update_spline")
 
 # BONE TOOLS
 #########################################################################################################################################################
@@ -342,30 +357,6 @@ class ParentConsecutiveSelectedBones(Operator):
         place_armature.parent_consecutive_selected_bones(context)
         return {"FINISHED"} 
 
-class CreateSpineRig(Operator):
-    """Spline ik constrain the bones between the selected start and end bones to a new spline curve. Creates two bone controls that move the start and end points of the spline"""
-    bl_idname = "bone_tool.create_spine_rig"
-    bl_label = "Create spine rig"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        bone_tool = context.scene.bone_tool
-        from . import place_armature
-        place_armature.create_spine_rig(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.preserve_length, bone_tool.handle_length)
-        return {"FINISHED"}
-
-class UpdateSpline(Operator):
-    """Updates the spline generated from the spine rig"""
-    bl_idname = "bone_tool.update_spline"
-    bl_label = "Update Spline"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        bone_tool = context.scene.bone_tool
-        from . import place_armature
-        place_armature.update_spline(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.preserve_length, bone_tool.handle_length)
-        return {"FINISHED"}    
-
 # VERTEX GROUP TOOLS
 #########################################################################################################################################################
 
@@ -463,6 +454,35 @@ class ReplaceListVertexGroups(Operator):
         place_armature.replace_list_vertex_groups(context)
         return {"FINISHED"}
 
+# SPINE RIGGING TOOLS
+#########################################################################################################################################################
+
+# Creation
+
+class CreateSpineRig(Operator):
+    """Spline ik constrain the bones between the selected start and end bones to a new spline curve. Creates two bone controls that move the start and end points of the spline"""
+    bl_idname = "bone_tool.create_spine_rig"
+    bl_label = "Create spine rig"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        bone_tool = context.scene.bone_tool
+        from . import place_armature
+        place_armature.create_spine_rig(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.preserve_length, bone_tool.handle_length)
+        return {"FINISHED"}
+
+class UpdateSpline(Operator):
+    """Updates the spline generated from the spine rig"""
+    bl_idname = "bone_tool.update_spline"
+    bl_label = "Update Spline"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        bone_tool = context.scene.bone_tool
+        from . import place_armature
+        place_armature.update_spline(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.preserve_length, bone_tool.handle_length)
+        return {"FINISHED"}    
+
 classes = (
     Properties,
     OBJECT_PT_riggingToolsPanel,
@@ -477,6 +497,9 @@ classes = (
     OBJECT_PT_vertexGroupToolsDiagnostics,
     OBJECT_PT_vertexGroupToolsLockedVertexGroupOperations,
     OBJECT_PT_vertexGroupToolsVertexGroupOperations,    
+
+    OBJECT_PT_spineRiggingTools,
+    OBJECT_PT_spineRiggingToolsCreation,
 
     AddSuffix, ReplaceString,
     EnumerateBones,
