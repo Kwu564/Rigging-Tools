@@ -60,10 +60,10 @@ class Properties(PropertyGroup):
             ("z", "z axis", ""),
         ]
     )
-    preserve_length: BoolProperty (
-        name="Preserve Length",
-        description="Preserve handle lengths",
-        default=False,
+    bone_control_length: FloatProperty (
+        name="Bone Control Length",
+        description="Enter Bone length",
+        default=0.5,
     )
     flip_start_handles: BoolProperty (
         name="Flip Start Handles",
@@ -73,6 +73,11 @@ class Properties(PropertyGroup):
     flip_end_handles: BoolProperty (
         name="Flip End Handles",
         description="Flip the direction of the end handles",
+        default=False,
+    )
+    preserve_length: BoolProperty (
+        name="Preserve Length",
+        description="Preserve handle lengths",
         default=False,
     )
     handle_length: FloatProperty (
@@ -234,6 +239,7 @@ class OBJECT_PT_spineRiggingToolsCreation(ToolPanel):
         bone_tool = context.scene.bone_tool
 
         layout.label(text="Create spine rig")
+        layout.prop(bone_tool, "bone_control_length")
         layout.prop(bone_tool, "flip_start_handles")
         layout.prop(bone_tool, "flip_end_handles")
         layout.prop(bone_tool, "preserve_length")
@@ -468,7 +474,7 @@ class CreateSpineRig(Operator):
     def execute(self, context):
         bone_tool = context.scene.bone_tool
         from . import place_armature
-        place_armature.create_spine_rig(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.preserve_length, bone_tool.handle_length)
+        place_armature.create_spine_rig(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.preserve_length, bone_tool.handle_length, bone_tool.bone_control_length)
         return {"FINISHED"}
 
 class UpdateSpline(Operator):

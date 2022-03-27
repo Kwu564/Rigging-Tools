@@ -32,7 +32,7 @@ def enumerate_bones(context):
     obj = context.object
     if obj.type != "ARMATURE":
         return
-    bpy.ops.object.mode_set(mode="EDIT", toggle=False)
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
 
     edit_bones = context.object.data.edit_bones
     index = {
@@ -79,7 +79,7 @@ def bones_from_objects(context, tip_length):
     selected_objects = context.selected_objects
     obj = bpy.data.objects["Armature"]
     context.view_layer.objects.active = obj
-    bpy.ops.object.mode_set(mode="EDIT", toggle=False)
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     edit_bones = obj.data.edit_bones
     bone_names = []
     mwi = obj.matrix_world.inverted()
@@ -115,7 +115,7 @@ def bones_from_verts(context, reverse):
     #print(adj_dict)
     obj = bpy.data.objects["Armature"]
     context.view_layer.objects.active = obj
-    bpy.ops.object.mode_set(mode="EDIT", toggle=False)
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     for bone in obj.data.edit_bones:
         bone.select = False
 
@@ -151,7 +151,7 @@ def planar_align_bones(context, axis):
     if obj.type != "ARMATURE":
         return
     context.view_layer.objects.active = obj
-    bpy.ops.object.mode_set(mode="EDIT", toggle=False)
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     edit_bones = obj.data.edit_bones
     selected_bones = context.selected_editable_bones
 
@@ -209,7 +209,7 @@ def planar_align_bones(context, axis):
             pb.ik_max_y = 0
 
     bpy.ops.pose.armature_apply(selected=True)
-    bpy.ops.object.mode_set(mode="EDIT", toggle=False)
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     ab.constraints.remove(ik)
 
     tb = edit_bones.get(target)
@@ -237,7 +237,7 @@ def straighten_bones(context):
     obj = context.object
     if obj.type != "ARMATURE":
         return
-    bpy.ops.object.mode_set(mode="EDIT", toggle=False)
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     selected_bones = context.selected_editable_bones
     pole_dir = (selected_bones[len(selected_bones)-1].tail - selected_bones[0].head).normalized()
     for i in range(len(selected_bones)-1):
@@ -277,39 +277,29 @@ def parent_consecutive_selected_bones(context):
         od[key].use_connect = True
         od[key].parent = od[i-1]
 
-# Places a new curve between the selected start and end bones of a spine
-def create_spine_rig(context, flip_start_handles, flip_end_handles, preserve_length, handle_length):
-    obj = context.object
-
-    selected_bones = context.selected_pose_bones
-    if obj.type != "ARMATURE" or obj.type == "ARMATURE" and len(selected_bones) < 2:
-        return
-    
-    # Obtain start and end bones
-    start_bone = selected_bones[0]
-    end_bone = selected_bones[1]
-
+def create_bezier_spine(context, arm_obj, selected_pose_bones, flip_start_handles, flip_end_handles, preserve_length, handle_length):
     # If bone 0 has children then set it to start_bone and bone 1 to end_bone otherwise
     # set bone 0 to end_bone and bone 1 to start_bone
-    if len(selected_bones[0].children) > 0:
-        start_bone = selected_bones[0]
-        end_bone = selected_bones[1]
-        print("start: " + selected_bones[0].name + " end: " + selected_bones[1].name)
+    if len(selected_pose_bones[0].children) > 0:
+        start_bone = selected_pose_bones[0]
+        end_bone = selected_pose_bones[1]
+        print("start: " + selected_pose_bones[0].name + " end: " + selected_pose_bones[1].name)
     else:
-        start_bone = selected_bones[1]
-        end_bone = selected_bones[0]
-        print("start: " + selected_bones[1].name + " end: " + selected_bones[0].name)
+        start_bone = selected_pose_bones[1]
+        end_bone = selected_pose_bones[0]
+        print("start: " + selected_pose_bones[1].name + " end: " + selected_pose_bones[0].name)
 
     # Create new curve and assign its start and end controls to the start and end bone positions
-    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.view3d.snap_cursor_to_center()
     bpy.ops.curve.primitive_bezier_curve_add()
+    spline_obj = context.object
     
     # Transform each bone position from pose space to the curve's object space then assign them to the bezier points
-    bezier_points = context.object.data.splines.active.bezier_points
-    mwi = context.object.matrix_world.inverted()
-    bezier_points[0].co = mwi @ obj.matrix_world @ start_bone.head
-    bezier_points[1].co = mwi @ obj.matrix_world @ end_bone.tail
+    bezier_points = spline_obj.data.splines.active.bezier_points
+    mwi = spline_obj.matrix_world.inverted()
+    bezier_points[0].co = mwi @ arm_obj.matrix_world @ start_bone.head
+    bezier_points[1].co = mwi @ arm_obj.matrix_world @ end_bone.tail
 
     # Get the distances between the left and right handle of bezier point 0 and 1
     handle0_length_left = (bezier_points[0].handle_left - bezier_points[0].co).length
@@ -324,8 +314,8 @@ def create_spine_rig(context, flip_start_handles, flip_end_handles, preserve_len
         handle1_length_right = handle_length
 
     # Convert the start and end bone direction vectors from pose bone space to curve object space before setting the direction
-    start_handles_dir = (mwi @ obj.matrix_world @ start_bone.vector).normalized()
-    end_handles_dir = (mwi @ obj.matrix_world @ end_bone.vector).normalized()
+    start_handles_dir = (mwi @ arm_obj.matrix_world @ start_bone.vector).normalized()
+    end_handles_dir = (mwi @ arm_obj.matrix_world @ end_bone.vector).normalized()
         
     # Flip direction if flipping is true
     if flip_start_handles:
@@ -338,11 +328,94 @@ def create_spine_rig(context, flip_start_handles, flip_end_handles, preserve_len
     bezier_points[1].handle_left = bezier_points[1].co + end_handles_dir * handle1_length_left
     bezier_points[1].handle_right = bezier_points[1].co + end_handles_dir * handle1_length_right
 
+    return spline_obj
+
+# Create_spine_rig helper function
+# Create bone controls for the spine
+def create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_control_length):
+
+    context.view_layer.objects.active = arm_obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    edit_bones = arm_obj.data.edit_bones
+    # Specify the direction the control bones should face
+    mwi = arm_obj.matrix_world.inverted()
+    dir = mwi @ Vector([1, 0, 0])
+
+    # Create a bone to control the location and orientation of the start spline control point
+    name = "start_spine_ctrl"
+    b = edit_bones.new(name)
+    b.head = edit_bones.get(start_bone.name).head
+    b.tail = edit_bones.get(start_bone.name).head + dir * bone_control_length
+    b.parent = None
+    b.use_deform = False
+    # Creating a hook in edit seems to create some offset between the point and bone so need to create a hook in object mode
+    bpy.ops.object.mode_set(mode='OBJECT')
+    # Hook bezier points 0 to the start bone control and 1 to the end bone control
+    hm = spline_obj.modifiers.new(name = "Start_Bone_Hook", type='HOOK')
+    hm.object = arm_obj
+    hm.subtarget = name
+    # vertex index = (control point index * 3) + 1
+    # so control point 0 is vertex index 1
+    hm.vertex_indices_set([1])
+
+    bpy.ops.object.mode_set(mode='EDIT')
+
+    # Create a bone to control the location and orientation of the end spline control point
+    name = "end_spine_ctrl"
+    b = edit_bones.new(name)
+    b.head = edit_bones.get(end_bone.name).tail
+    b.tail = edit_bones.get(end_bone.name).tail + dir * bone_control_length
+    b.parent = None
+    b.use_deform = False
+    # Creating a hook in edit seems to create some offset between the point and bone so need to create a hook in object mode
+    bpy.ops.object.mode_set(mode='OBJECT')
+    # Hook bezier points 0 to the start bone control and 1 to the end bone control
+    hm = spline_obj.modifiers.new(name = "End_Bone_Hook", type='HOOK')
+    hm.object = arm_obj
+    hm.subtarget = name
+    # vertex index = (control point index * 3) + 1
+    # so control point 1 is vertex index 4
+    hm.vertex_indices_set([4])
+
+# Create_spine_rig helper function
+# IK constrain spine bones to the spline
+def constrain_bones_spline(context, arm_obj, spline_obj, start_bone, end_bone):
+    bpy.ops.object.mode_set(mode='POSE')
+    for bone in arm_obj.data.bones:
+        bone.select = False
+    arm_obj.data.bones.active = end_bone.bone
+    splineIK = context.selected_pose_bones_from_active_object[0].constraints.new(type='SPLINE_IK')
+    splineIK.target = spline_obj
+    b = start_bone
+    chain_count = 1
+    while b != end_bone:
+        chain_count += 1
+        b = b.children[0]
+    splineIK.chain_count = chain_count
+
+# Places a new curve between the selected start and end bones of a spine
+def create_spine_rig(context, flip_start_handles, flip_end_handles, preserve_length, handle_length, bone_control_length):
+    arm_obj = context.object
+
+    selected_pose_bones = context.selected_pose_bones
+    if arm_obj.type != "ARMATURE" or arm_obj.type == "ARMATURE" and len(selected_pose_bones) < 2:
+        return
+    
+    # Obtain start and end bones
+    start_bone = selected_pose_bones[0]
+    end_bone = selected_pose_bones[1]
+
+    spline_obj = create_bezier_spine(context, arm_obj, selected_pose_bones, flip_start_handles, flip_end_handles, preserve_length, handle_length)
+
+    create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_control_length)
+
+    constrain_bones_spline(context, arm_obj, spline_obj, start_bone, end_bone)
+
 # Perform adjustments to the selected spline. Logic is identical to create_spine_rig but does not create a new curve
 def update_spline(context, flip_start_handles, flip_end_handles, preserve_length, handle_length):
     obj = context.object
 
-    if obj.type != "CURVE":
+    if obj.type != 'CURVE':
         return
 
     # Transform each bone position from pose space to the curve's object space then assign them to the bezier points
