@@ -277,6 +277,25 @@ def parent_consecutive_selected_bones(context):
         od[key].use_connect = True
         od[key].parent = od[i-1]
 
+# Helper function for remove_constraints
+# Remove all constraints of the type on bone b
+def remove_constraints_on_bone(b):
+    # Create a list of all the copy location constraints on this bone
+    copyLocConstraints = [ c for c in b.constraints if c.type == 'SPLINE_IK' ]
+
+    # Iterate over all the bone's copy location constraints and delete them all
+    for c in copyLocConstraints:
+        b.constraints.remove(c)
+
+# Create_spine_rig helper function
+# Clears and previous constraints used by the spine rig creator
+def remove_constraints(start_bone, end_bone):
+    b = start_bone
+    while b != end_bone:
+        remove_constraints_on_bone(b)
+        b = b.children[0]
+    remove_constraints_on_bone(b)
+
 def create_bezier_spine(context, arm_obj, selected_pose_bones, flip_start_handles, flip_end_handles, preserve_length, handle_length):
     # If bone 0 has children then set it to start_bone and bone 1 to end_bone otherwise
     # set bone 0 to end_bone and bone 1 to start_bone
@@ -392,6 +411,9 @@ def constrain_bones_spline(context, arm_obj, spline_obj, start_bone, end_bone):
         chain_count += 1
         b = b.children[0]
     splineIK.chain_count = chain_count
+    splineIK.use_curve_radius = False
+    splineIK.y_scale_mode = 'NONE'
+    splineIK.xz_scale_mode = 'NONE'
 
 # Places a new curve between the selected start and end bones of a spine
 def create_spine_rig(context, flip_start_handles, flip_end_handles, preserve_length, handle_length, bone_control_length):
@@ -404,6 +426,8 @@ def create_spine_rig(context, flip_start_handles, flip_end_handles, preserve_len
     # Obtain start and end bones
     start_bone = selected_pose_bones[0]
     end_bone = selected_pose_bones[1]
+
+    remove_constraints(start_bone, end_bone)
 
     spline_obj = create_bezier_spine(context, arm_obj, selected_pose_bones, flip_start_handles, flip_end_handles, preserve_length, handle_length)
 
