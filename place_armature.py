@@ -351,7 +351,7 @@ def create_bezier_spine(context, arm_obj, selected_pose_bones, flip_start_handle
 
 # Create_spine_rig helper function
 # Create bone controls for the spine
-def create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_control_length):
+def create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_control_length, start_bone_name, end_bone_name):
 
     context.view_layer.objects.active = arm_obj
     bpy.ops.object.mode_set(mode='EDIT')
@@ -361,7 +361,7 @@ def create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_
     dir = mwi @ Vector([1, 0, 0])
 
     # Create a bone to control the location and orientation of the start spline control point
-    name = "start_spine_ctrl"
+    name = start_bone_name + "_ctrl"
     b = edit_bones.new(name)
     b.head = edit_bones.get(start_bone.name).head
     b.tail = edit_bones.get(start_bone.name).head + dir * bone_control_length
@@ -370,7 +370,7 @@ def create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_
     # Creating a hook in edit seems to create some offset between the point and bone so need to create a hook in object mode
     bpy.ops.object.mode_set(mode='OBJECT')
     # Hook bezier points 0 to the start bone control and 1 to the end bone control
-    hm = spline_obj.modifiers.new(name = "Start_Bone_Hook", type='HOOK')
+    hm = spline_obj.modifiers.new(name = start_bone_name + "_hook", type='HOOK')
     hm.object = arm_obj
     hm.subtarget = name
     # vertex index = (control point index * 3) + 1
@@ -380,7 +380,7 @@ def create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_
     bpy.ops.object.mode_set(mode='EDIT')
 
     # Create a bone to control the location and orientation of the end spline control point
-    name = "end_spine_ctrl"
+    name = end_bone_name + "_ctrl"
     b = edit_bones.new(name)
     b.head = edit_bones.get(end_bone.name).tail
     b.tail = edit_bones.get(end_bone.name).tail + dir * bone_control_length
@@ -389,7 +389,7 @@ def create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_
     # Creating a hook in edit seems to create some offset between the point and bone so need to create a hook in object mode
     bpy.ops.object.mode_set(mode='OBJECT')
     # Hook bezier points 0 to the start bone control and 1 to the end bone control
-    hm = spline_obj.modifiers.new(name = "End_Bone_Hook", type='HOOK')
+    hm = spline_obj.modifiers.new(name = end_bone_name + "_hook", type='HOOK')
     hm.object = arm_obj
     hm.subtarget = name
     # vertex index = (control point index * 3) + 1
@@ -416,7 +416,7 @@ def constrain_bones_spline(context, arm_obj, spline_obj, start_bone, end_bone):
     splineIK.xz_scale_mode = 'NONE'
 
 # Places a new curve between the selected start and end bones of a spine
-def create_spine_rig(context, flip_start_handles, flip_end_handles, preserve_length, handle_length, bone_control_length):
+def create_spine_rig(context, flip_start_handles, flip_end_handles, preserve_length, handle_length, bone_control_length, start_bone_name, end_bone_name):
     arm_obj = context.object
 
     selected_pose_bones = context.selected_pose_bones
@@ -431,11 +431,11 @@ def create_spine_rig(context, flip_start_handles, flip_end_handles, preserve_len
 
     spline_obj = create_bezier_spine(context, arm_obj, selected_pose_bones, flip_start_handles, flip_end_handles, preserve_length, handle_length)
 
-    create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_control_length)
+    create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_control_length, start_bone_name, end_bone_name)
 
     constrain_bones_spline(context, arm_obj, spline_obj, start_bone, end_bone)
 
-# Perform adjustments to the selected spline. Logic is identical to create_spine_rig but does not create a new curve
+# Perform adjustments to the selected spline. Logic is identical to create_spine_rig but does not create a new curve.
 def update_spline(context, flip_start_handles, flip_end_handles, preserve_length, handle_length):
     obj = context.object
 

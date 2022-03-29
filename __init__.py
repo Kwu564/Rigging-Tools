@@ -60,6 +60,18 @@ class Properties(PropertyGroup):
             ("z", "z axis", ""),
         ]
     )
+    start_bone_name: StringProperty (
+        name="Start Bone Name",
+        description="Enter name",
+        default="",
+        maxlen=1024,
+    )
+    end_bone_name: StringProperty (
+        name="End Bone Name",
+        description="Enter name",
+        default="",
+        maxlen=1024,
+    )
     bone_control_length: FloatProperty (
         name="Bone Control Length",
         description="Enter Bone length",
@@ -239,6 +251,8 @@ class OBJECT_PT_spineRiggingToolsCreation(ToolPanel):
         bone_tool = context.scene.bone_tool
 
         layout.label(text="Create spine rig")
+        layout.prop(bone_tool, "start_bone_name")
+        layout.prop(bone_tool, "end_bone_name")
         layout.prop(bone_tool, "bone_control_length")
         layout.prop(bone_tool, "flip_start_handles")
         layout.prop(bone_tool, "flip_end_handles")
@@ -474,7 +488,7 @@ class CreateSpineRig(Operator):
     def execute(self, context):
         bone_tool = context.scene.bone_tool
         from . import place_armature
-        place_armature.create_spine_rig(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.preserve_length, bone_tool.handle_length, bone_tool.bone_control_length)
+        place_armature.create_spine_rig(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.preserve_length, bone_tool.handle_length, bone_tool.bone_control_length, bone_tool.start_bone_name, bone_tool.end_bone_name)
         return {"FINISHED"}
 
 class UpdateSpline(Operator):
