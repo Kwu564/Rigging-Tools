@@ -404,34 +404,52 @@ def create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_
 
 # Add_spine_twist helper function
 # Rotates pose bone b at index i to create a spiraling twist like motion in the spine bone chain
-def add_twist_driver_to_bone(arm_obj, chain_count, end_bone_name, b, i):
+def add_twist_driver_to_bone(arm_obj, chain_count, start_bone, end_bone_name, rotate_start_bone, b, i):
     # To prevent additive rotation from inheriting the bone's parent rotation when twisting the spine
     b.bone.use_inherit_rotation = False
 
     # Remove any rotation drivers, set rotation mode to euler xyz order
     # Then add a new driver at the y rotation channel
-    b.rotation_mode = 'XYZ'
     path = 'rotation_euler'
     b.driver_remove(path)
-    fcurve = b.driver_add(path, 1)
+    if rotate_start_bone:
+        b.rotation_mode = 'XYZ'
+        fcurve = b.driver_add(path, 1)
 
-    # Create a new driver variable that gets the local rotation z of the end control bone
-    var = fcurve.driver.variables.new()
-    var.type = 'TRANSFORMS'
-    target = var.targets[0]
-    target.id = arm_obj
-    target.bone_target = end_bone_name
-    target.transform_type = 'ROT_Z'
-    target.rotation_mode = 'XYZ'
-    target.transform_space = 'LOCAL_SPACE'
+        # Create a new driver variable that gets the local rotation z of the end control bone
+        var = fcurve.driver.variables.new()
+        var.type = 'TRANSFORMS'
+        target = var.targets[0]
+        target.id = arm_obj
+        target.bone_target = end_bone_name
+        target.transform_type = 'ROT_Z'
+        target.rotation_mode = 'XYZ'
+        target.transform_space = 'LOCAL_SPACE'
 
-    # Take the local rotation z stored in the variable and divide by the chain length + 1
-    # Then multiply it by the index to get the final rotation of the bone corresponding to the index
-    fcurve.driver.expression = fcurve.driver.variables[0].name +  "/" + str(chain_count + 1) + "*" + str(i)
+        # Take the local rotation z stored in the variable and divide by the chain length + 1
+        # Then multiply it by the index to get the final rotation of the bone corresponding to the index
+        fcurve.driver.expression = fcurve.driver.variables[0].name +  "/" + str(chain_count + 1) + "*" + str(i)
+    elif b != start_bone:
+        b.rotation_mode = 'XYZ'
+        fcurve = b.driver_add(path, 1)
+
+        # Create a new driver variable that gets the local rotation z of the end control bone
+        var = fcurve.driver.variables.new()
+        var.type = 'TRANSFORMS'
+        target = var.targets[0]
+        target.id = arm_obj
+        target.bone_target = end_bone_name
+        target.transform_type = 'ROT_Z'
+        target.rotation_mode = 'XYZ'
+        target.transform_space = 'LOCAL_SPACE'
+
+        # Take the local rotation z stored in the variable and divide by the chain length + 1
+        # Then multiply it by the index to get the final rotation of the bone corresponding to the index
+        fcurve.driver.expression = fcurve.driver.variables[0].name +  "/" + str(chain_count) + "*" + str(i)
     
 # Create_spine_rig helper function
 # Traverse the spine chain adding drivers to create a twist motion
-def add_spine_twist(arm_obj, start_bone, end_bone, end_bone_name):
+def add_spine_twist(arm_obj, start_bone, end_bone, end_bone_name, rotate_start_bone):
     b = start_bone
     chain_count = 1
     # Get chain length from the start to end bone
@@ -442,10 +460,10 @@ def add_spine_twist(arm_obj, start_bone, end_bone, end_bone_name):
     b = start_bone
     i = 1
     while b != end_bone:
-        add_twist_driver_to_bone(arm_obj, chain_count, end_bone_name, b, i)
+        add_twist_driver_to_bone(arm_obj, chain_count, start_bone, end_bone_name, rotate_start_bone, b, i)      
         i += 1
         b = b.children[0]
-    add_twist_driver_to_bone(arm_obj, chain_count, end_bone_name, b, i)
+    add_twist_driver_to_bone(arm_obj, chain_count, start_bone, end_bone_name, rotate_start_bone, b, i)
 
 # Create_spine_rig helper function
 # IK constrain spine bones to the spline
@@ -467,7 +485,7 @@ def constrain_bones_spline(context, arm_obj, spline_obj, start_bone, end_bone):
     splineIK.xz_scale_mode = 'NONE'
 
 # Places a new curve between the selected start and end bones of a spine
-def create_spine_rig(context, flip_start_handles, flip_end_handles, preserve_length, handle_length, bone_control_length, start_bone_name, end_bone_name):
+def create_spine_rig(context, flip_start_handles, flip_end_handles, rotate_start_bone, preserve_length, handle_length, bone_control_length, start_bone_name, end_bone_name):
     arm_obj = context.object
 
     selected_pose_bones = context.selected_pose_bones
@@ -486,7 +504,7 @@ def create_spine_rig(context, flip_start_handles, flip_end_handles, preserve_len
 
     constrain_bones_spline(context, arm_obj, spline_obj, start_bone, end_bone)
 
-    add_spine_twist(arm_obj, start_bone, end_bone, end_bone_name)
+    add_spine_twist(arm_obj, start_bone, end_bone, end_bone_name, rotate_start_bone)
 
 # Perform adjustments to the selected spline. Logic is identical to create_spine_rig but does not create a new curve.
 def update_spline(context, flip_start_handles, flip_end_handles, preserve_length, handle_length):
