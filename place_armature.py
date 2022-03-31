@@ -408,8 +408,9 @@ def add_twist_driver_to_bone(arm_obj, chain_count, end_bone_name, b, i):
     # To prevent additive rotation from inheriting the bone's parent rotation when twisting the spine
     b.bone.use_inherit_rotation = False
 
-    # Remove any rotation drivers
+    # Remove any rotation drivers, set rotation mode to euler xyz order
     # Then add a new driver at the y rotation channel
+    b.rotation_mode = 'XYZ'
     path = 'rotation_euler'
     b.driver_remove(path)
     fcurve = b.driver_add(path, 1)
