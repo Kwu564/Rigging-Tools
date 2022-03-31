@@ -350,7 +350,7 @@ def create_bezier_spine(context, arm_obj, selected_pose_bones, flip_start_handle
     return spline_obj
 
 # Create_spine_rig helper function
-# Create bone controls for the spine
+# Create bone controls for the spine, returns the end bone name
 def create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_control_length, start_bone_name, end_bone_name):
 
     context.view_layer.objects.active = arm_obj
@@ -361,6 +361,8 @@ def create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_
     dir = mwi @ Vector([1, 0, 0])
 
     # Create a bone to control the location and orientation of the start spline control point
+    start_bone_default_name = "start_bone"
+    start_bone_name = start_bone_default_name if len(start_bone_name) == 0 else start_bone_name 
     name = start_bone_name + "_ctrl"
     b = edit_bones.new(name)
     b.head = edit_bones.get(start_bone.name).head
@@ -380,6 +382,8 @@ def create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_
     bpy.ops.object.mode_set(mode='EDIT')
 
     # Create a bone to control the location and orientation of the end spline control point
+    end_bone_default_name = "end_bone"
+    end_bone_name = end_bone_default_name if len(end_bone_name) == 0 else end_bone_name 
     name = end_bone_name + "_ctrl"
     b = edit_bones.new(name)
     b.head = edit_bones.get(end_bone.name).tail
@@ -395,6 +399,52 @@ def create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_
     # vertex index = (control point index * 3) + 1
     # so control point 1 is vertex index 4
     hm.vertex_indices_set([4])
+
+    return name
+
+# Add_spine_twist helper function
+# Rotates pose bone b at index i to create a spiraling twist like motion in the spine bone chain
+def add_twist_driver_to_bone(arm_obj, chain_count, end_bone_name, b, i):
+    # To prevent additive rotation from inheriting the bone's parent rotation when twisting the spine
+    b.bone.use_inherit_rotation = False
+
+    # Remove any rotation drivers
+    # Then add a new driver at the y rotation channel
+    path = 'rotation_euler'
+    b.driver_remove(path)
+    fcurve = b.driver_add(path, 1)
+
+    # Create a new driver variable that gets the local rotation z of the end control bone
+    var = fcurve.driver.variables.new()
+    var.type = 'TRANSFORMS'
+    target = var.targets[0]
+    target.id = arm_obj
+    target.bone_target = end_bone_name
+    target.transform_type = 'ROT_Z'
+    target.rotation_mode = 'XYZ'
+    target.transform_space = 'LOCAL_SPACE'
+
+    # Take the local rotation z stored in the variable and divide by the chain length + 1
+    # Then multiply it by the index to get the final rotation of the bone corresponding to the index
+    fcurve.driver.expression = fcurve.driver.variables[0].name +  "/" + str(chain_count + 1) + "*" + str(i)
+    
+# Create_spine_rig helper function
+# Traverse the spine chain adding drivers to create a twist motion
+def add_spine_twist(arm_obj, start_bone, end_bone, end_bone_name):
+    b = start_bone
+    chain_count = 1
+    # Get chain length from the start to end bone
+    while b != end_bone:
+        chain_count += 1
+        b = b.children[0]
+
+    b = start_bone
+    i = 1
+    while b != end_bone:
+        add_twist_driver_to_bone(arm_obj, chain_count, end_bone_name, b, i)
+        i += 1
+        b = b.children[0]
+    add_twist_driver_to_bone(arm_obj, chain_count, end_bone_name, b, i)
 
 # Create_spine_rig helper function
 # IK constrain spine bones to the spline
@@ -431,9 +481,11 @@ def create_spine_rig(context, flip_start_handles, flip_end_handles, preserve_len
 
     spline_obj = create_bezier_spine(context, arm_obj, selected_pose_bones, flip_start_handles, flip_end_handles, preserve_length, handle_length)
 
-    create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_control_length, start_bone_name, end_bone_name)
+    end_bone_name = create_spine_ctrls(context, arm_obj, start_bone, end_bone, spline_obj, bone_control_length, start_bone_name, end_bone_name)
 
     constrain_bones_spline(context, arm_obj, spline_obj, start_bone, end_bone)
+
+    add_spine_twist(arm_obj, start_bone, end_bone, end_bone_name)
 
 # Perform adjustments to the selected spline. Logic is identical to create_spine_rig but does not create a new curve.
 def update_spline(context, flip_start_handles, flip_end_handles, preserve_length, handle_length):
