@@ -28,6 +28,7 @@ from bpy.types import (
     PropertyGroup,  
 )
 
+# Specifies all properties used by the tooling methods
 class Properties(PropertyGroup):
     suffix_string: StringProperty (
         name="Suffix",
@@ -102,6 +103,17 @@ class Properties(PropertyGroup):
         description="Enter length",
         default=0.5,
     )
+    delete_modifier_name: StringProperty (
+        name="Modifier name",
+        description="Enter modifier name to delete from the selected objects",
+        default="",
+        maxlen=1024,
+    )
+
+# Sepcifies the tool panels, sub panels and the labels, properties, and operators within those labelss
+# e.g. in this case a panel named rigging tools with several panels under it such as a panel named bone tools and 
+# another named vertex tools. Bone tools and vertex tools then have several more sub panels each then containing
+# labels, propertiees, and operators
 
 class ToolPanel(Panel):
     bl_space_type = "VIEW_3D"
@@ -267,6 +279,25 @@ class OBJECT_PT_spineRiggingToolsCreation(ToolPanel):
             layout.prop(bone_tool, "handle_length")
         layout.operator("bone_tool.create_spine_rig")
         layout.operator("bone_tool.update_spline")
+
+class OBJECT_PT_ModifierTools(ToolPanel):
+    bl_parent_id = "OBJECT_PT_riggingToolsPanel"
+    bl_label = "Modifier Tools"
+
+    def draw(self, context):
+        return
+
+class OBJECT_PT_removeModifier(ToolPanel):
+    bl_parent_id = "OBJECT_PT_ModifierTools"
+    bl_label = "Remove Modifier"
+
+    def draw(self, context):
+        layout = self.layout
+        bone_tool = context.scene.bone_tool
+
+        layout.label(text="Remove Modifier")
+        layout.prop(bone_tool, "delete_modifier_name")
+        layout.operator("bone_tool.remove_modifier")
 
 # BONE TOOLS
 #########################################################################################################################################################
@@ -509,6 +540,23 @@ class UpdateSpline(Operator):
         place_armature.update_spline(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.preserve_length, bone_tool.handle_length)
         return {"FINISHED"}    
 
+# MODIFIER TOOLS
+#########################################################################################################################################################
+
+# Remove Modifier
+
+class RemoveModifier(Operator):
+    """Remove the modifier with the modifier name from all selected objects"""
+    bl_idname = "bone_tool.remove_modifier"
+    bl_label = "Remove Modifier"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        bone_tool = context.scene.bone_tool
+        from . import place_armature
+        place_armature.remove_modifier(context, bone_tool.delete_modifier_name)
+        return {"FINISHED"}  
+
 classes = (
     Properties,
     OBJECT_PT_riggingToolsPanel,
@@ -524,8 +572,11 @@ classes = (
     OBJECT_PT_vertexGroupToolsLockedVertexGroupOperations,
     OBJECT_PT_vertexGroupToolsVertexGroupOperations,    
 
-    OBJECT_PT_spineRiggingTools,
+    OBJECT_PT_spineRiggingTools, 
     OBJECT_PT_spineRiggingToolsCreation,
+
+    OBJECT_PT_ModifierTools,
+    OBJECT_PT_removeModifier,
 
     AddSuffix, ReplaceString,
     EnumerateBones,
@@ -538,8 +589,6 @@ classes = (
 
     ReapplyAutoWeights,
     ParentConsecutiveSelectedBones,
-    CreateSpineRig,
-    UpdateSpline,
 
     CheckVertexGroups,
 
@@ -551,6 +600,11 @@ classes = (
     MirrorEmptyVertexGroups,
     RemoveVertexGroups,
     ReplaceListVertexGroups,
+
+    CreateSpineRig,
+    UpdateSpline,
+
+    RemoveModifier,
 )
 
 def register():

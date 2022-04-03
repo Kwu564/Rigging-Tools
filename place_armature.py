@@ -1,3 +1,4 @@
+from unittest import skip
 import bpy
 import math
 import bmesh
@@ -146,92 +147,166 @@ def bones_from_verts(context, reverse):
                     break
 # Alignment
 
-def planar_align_bones(context, axis):
-    obj = context.object
-    if obj.type != "ARMATURE":
-        return
-    context.view_layer.objects.active = obj
-    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    edit_bones = obj.data.edit_bones
-    selected_bones = context.selected_editable_bones
+# Align bones on a specified axis, taking in a selection that contains the start and end of the bone chain to align
+# This will bend the bones between the start and end bone while preserving the positions of the head of the start bone and the
+# tail of the last bone
+# Note: All bones in the chain must be connected and start and end bones must be selected in edit mode for this to work properly,
+# only works on a chain of three bones in pose mode
+class IK_Bone_Settings():
+    use_ik_limit_x = 0
+    use_ik_limit_y = 0
+    use_ik_limit_z = 0
+    ik_min_x = 0
+    ik_max_x = 0
+    ik_min_y = 0
+    ik_max_y = 0
+    ik_min_z = 0
+    ik_max_z = 0
+    def __init__(self, use_ik_limit_x, use_ik_limit_y, use_ik_limit_z, ik_min_x, ik_max_x, ik_min_y, ik_max_y, ik_min_z, ik_max_z,):
+        self.use_ik_limit_x = use_ik_limit_x
+        self.use_ik_limit_y = use_ik_limit_y
+        self.use_ik_limit_z = use_ik_limit_z
+        self.ik_min_x = ik_min_x
+        self.ik_max_x = ik_max_x
+        self.ik_min_y = ik_min_y
+        self.ik_max_y = ik_max_y
+        self.ik_min_z = ik_min_z
+        self.ik_max_z = ik_max_z
 
+# Planar_align_bones helper function
+# Sets the ik limits so that the ik solver bends the chain around the specified axis, saves the original ik limits to a dictionary
+def set_bone_limits(arm, ik_bone_settings, axis, eb):
+    pb = arm.pose.bones[eb.name]
+    # Save the settings first before making changes so we can later reset our ik settings to their original values
+    ik_bone_settings[eb.name] = IK_Bone_Settings(
+            pb.use_ik_limit_x,
+            pb.use_ik_limit_y,
+            pb.use_ik_limit_z,
+            pb.ik_min_x,
+            pb.ik_max_x,                
+            pb.ik_min_y,
+            pb.ik_max_y,
+            pb.ik_min_z,
+            pb.ik_max_z,              
+        )
+    if axis == "x":
+        pb.use_ik_limit_y = True
+        pb.use_ik_limit_z = True
+        pb.ik_min_y = 0
+        pb.ik_max_y = 0
+        pb.ik_min_z = 0
+        pb.ik_max_z = 0
+    if axis == "y":
+        pb.use_ik_limit_x = True
+        pb.use_ik_limit_z = True
+        pb.ik_min_x = 0
+        pb.ik_max_x = 0
+        pb.ik_min_z = 0
+        pb.ik_max_z = 0
+    if axis == "z": 
+        pb.use_ik_limit_x = True
+        pb.use_ik_limit_y = True                  
+        pb.ik_min_x = 0
+        pb.ik_max_x = 0
+        pb.ik_min_y = 0
+        pb.ik_max_y = 0
+
+def planar_align_bones(context, axis):
+    arm = context.object
+    if arm.type != "ARMATURE":
+        return
+    context.view_layer.objects.active = arm
+    
+    bpy.ops.object.mode_set(mode='EDIT')
+
+    selected_edit_bones = context.selected_editable_bones
+    edit_bones = arm.data.edit_bones
+
+    # Create ik target bone and make it face in the reverse of where the last bone in the selection is facing
     tb = edit_bones.new("bone")
     target = tb.name
-    tb.head = selected_bones[len(selected_bones)-1].tail
-    tb.tail = selected_bones[len(selected_bones)-1].head
+    tb.head = selected_edit_bones[-1].tail
+    tb.tail = selected_edit_bones[-1].head
 
-    lbc_children = selected_bones[len(selected_bones)-1].children_recursive
-    lbc = None
-    lbc_name = None
-    lb_name = None
-    if len(lbc_children) > 0:
-        lbc = lbc_children[0]
-        lbc_name = lbc.name
-        lb_name = selected_bones[len(selected_bones)-1].name
-        lbc.parent = None
+    # If the end bone in the selection has children, break that connection temporarily
+    # The parent will be reparented to its child after we finish aligning the bone chain
+    tip_children = selected_edit_bones[-1].children_recursive
+    tip_child_name = None
+    isTipChildConnected = None
+    if len(tip_children) > 0:
+        # Save the connection flag before unparenting since
+        # setting its parent to none also sets use_connect to false
+        isTipChildConnected = tip_children[0].use_connect
+        tip_children[0].parent = None
+        tip_child_name = tip_children[0].name
 
-    edit_bones.active = selected_bones[0]    
+    # Straighten all bones between the selected bones
+    edit_bones.active = selected_edit_bones[0]
     bpy.ops.armature.align()
 
-    bpy.ops.object.mode_set(mode="POSE", toggle=False)
-    obj.data.bones.active = obj.pose.bones[selected_bones[len(selected_bones)-1].name].bone
+    # Limit the bend around the inputed axis
+    # Sets the limit for each bone in between the start and end selected bone skipping the start bone and gets the chain length
+    ik_bone_settings = {}
+    eb = selected_edit_bones[0]
+    chain_length = 1
+    while eb != selected_edit_bones[-1]:
+        # Skip the first bone (root) to allow it to have a free range of motion, this will ensure the tip tail point remains in the same position
+        # after applying the ik solver
+        if eb == selected_edit_bones[0]:
+            eb = eb.children[0]
+            chain_length += 1
+            continue
+        set_bone_limits(arm, ik_bone_settings, axis, eb)
+        eb = eb.children[0]
+        chain_length += 1
+    set_bone_limits(arm, ik_bone_settings, axis, eb)
+
+    bpy.ops.object.mode_set(mode='POSE')
+
+    selected_edit_bones = context.selected_pose_bones
+
+    # Bend the bones so that the tip point is back at its original position
+    arm.data.bones.active = selected_edit_bones[-1].bone
     ab = context.active_pose_bone
     ik = ab.constraints.new("IK")
-    
-    ik.target = obj
+    ik.chain_count = chain_length
+    ik.target = arm
     ik.subtarget = target
 
-    for i in range(len(selected_bones)):
-        if i == 0:
-            continue
-        n = selected_bones[i].name
-        pb = obj.pose.bones[n]
-        if axis == "x":
-            pb.use_ik_limit_y = True
-            pb.use_ik_limit_z = True
-            pb.ik_min_y = 0
-            pb.ik_max_y = 0
-            pb.ik_min_z = 0
-            pb.ik_max_z = 0
-        if axis == "y":
-            pb.use_ik_limit_x = True
-            pb.use_ik_limit_z = True
-            pb.ik_min_x = 0
-            pb.ik_max_x = 0
-            pb.ik_min_z = 0
-            pb.ik_max_z = 0
-        if axis == "z": 
-            pb.use_ik_limit_x = True
-            pb.use_ik_limit_y = True                  
-            pb.ik_min_x = 0
-            pb.ik_max_x = 0
-            pb.ik_min_y = 0
-            pb.ik_max_y = 0
-
-    bpy.ops.pose.armature_apply(selected=True)
-    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    bpy.ops.pose.armature_apply(selected=False)
     ab.constraints.remove(ik)
 
-    tb = edit_bones.get(target)
-    edit_bones.remove(tb)
+    bpy.ops.object.mode_set(mode='EDIT')
 
-    if len(lbc_children) > 0:
-        lbc = edit_bones.get(lbc_name)
-        lbc.parent = edit_bones.get(lb_name)
-        lbc.use_connect = True
+    selected_edit_bones = context.selected_editable_bones
 
-    for i in range(len(selected_bones)):
-        n = selected_bones[i].name
-        pb = obj.pose.bones[n]
-        pb.use_ik_limit_x = False
-        pb.use_ik_limit_y = False      
-        pb.use_ik_limit_z = False
-        pb.ik_min_x = -180
-        pb.ik_max_x = 180
-        pb.ik_min_y = -180
-        pb.ik_max_y = 180
-        pb.ik_min_z = -180
-        pb.ik_max_z = 180
+    # Remove the target bone we used for ik
+    edit_bones = arm.data.edit_bones
+    edit_bones.remove(edit_bones.get(target))
+
+    # Reparent the tip bone's child back to its original bone parent
+    # tip_children will contain garbage data since we switched from edit to pose (where it is first initialized) and
+    # then back to edit mode, however its length appears to stay the same
+    if len(tip_children) > 0:
+        tip_child = edit_bones.get(tip_child_name)
+        tip_child.parent = selected_edit_bones[-1]
+        tip_child.use_connect = isTipChildConnected
+
+    # Reset each bone's ik settings back to their original values
+    for i, b in enumerate(selected_edit_bones):
+        if b == selected_edit_bones[0]:
+            continue
+        pb = arm.pose.bones[b.name]
+        setting = ik_bone_settings[b.name]
+        pb.use_ik_limit_x = setting.use_ik_limit_x
+        pb.use_ik_limit_y = setting.use_ik_limit_y    
+        pb.use_ik_limit_z = setting.use_ik_limit_z
+        pb.ik_min_x = setting.ik_min_x
+        pb.ik_max_x = setting.ik_max_x
+        pb.ik_min_y = setting.ik_min_y
+        pb.ik_max_y = setting.ik_max_y
+        pb.ik_min_z = setting.ik_min_z
+        pb.ik_max_z = setting.ik_max_z
 
 def straighten_bones(context):
     obj = context.object
@@ -276,6 +351,101 @@ def parent_consecutive_selected_bones(context):
             continue
         od[key].use_connect = True
         od[key].parent = od[i-1]
+
+# VERTEX GROUP TOOLS
+#########################################################################################################################################################
+
+# Diagnostics
+
+def check_vertex_groups(context):
+    objects = context.selected_editable_objects
+    intersect = set([vg.name for vg in objects[0].vertex_groups])
+    no_diff = True
+    for i in range(1, len(objects)):
+        intersect = intersect & set([vg.name for vg in objects[i].vertex_groups])
+    for obj in objects:
+        diff = intersect ^ set([vg.name for vg in obj.vertex_groups])
+        if len(diff) > 0:
+            no_diff = False
+            print(obj.name)
+            print(str(diff) + "\n")
+            obj.select_set(True)
+        else:
+            obj.select_set(False)
+    if no_diff:
+        print("No differences detected.")
+    print("")
+
+# Locked vertex group operations
+
+def add_locked_vertex_groups(context):
+    objects = context.selected_editable_objects    
+    locked_list = [vg.name for vg in context.view_layer.objects.active.vertex_groups if vg.lock_weight == True]
+
+    for ob in objects:
+        if ob != context.view_layer.objects.active:
+            ob_vgs = [vg.name for vg in ob.vertex_groups]
+            for vg in locked_list:
+                if vg not in ob_vgs:
+                    ob.vertex_groups.new(name=vg)
+
+def remove_locked_vertex_groups(context):
+    objects = context.selected_editable_objects
+    locked_list = [vg.name for vg in context.view_layer.objects.active.vertex_groups if vg.lock_weight == True]
+
+    for ob in objects:
+        for vg in ob.vertex_groups:
+            if vg.name in locked_list:
+                ob.vertex_groups.remove(vg)
+
+def replace_locked_vertex_groups(context):
+    objects = context.selected_editable_objects
+    locked_list = [vg for vg in context.view_layer.objects.active.vertex_groups if vg.lock_weight == True]
+
+    for ob in objects:
+        for vg in ob.vertex_groups:
+            for lvg in locked_list:
+                if vg.index == lvg.index:
+                    vg.name = lvg.name
+
+def lock_selected_vertex_groups(context):
+    objects = context.selected_editable_objects
+    locked_list = [vg.name for vg in context.view_layer.objects.active.vertex_groups if vg.lock_weight == True]
+
+    for ob in objects:
+        for vg in ob.vertex_groups:
+            if vg.name in locked_list:
+                vg.lock_weight = True
+
+# Vertex group operations
+
+def mirror_empty_vertex_groups(context):
+    objects = context.selected_editable_objects
+    for ob in objects:
+        vgs_names = [vg.name for vg in ob.vertex_groups]
+        for vg in ob.vertex_groups:
+            if vg.name[-2:] == "_r" and vg.name[:-2] + "_l" not in vgs_names:
+                ob.vertex_groups.new(name = vg.name[:-2] + "_l")
+            elif vg.name[-2] == "_l" and vg.name[:-2] + "_r" not in vgs_names:
+                ob.vertex_groups.new(name = vg.name[:-2] + "_r")
+
+def remove_vertex_groups(context):
+    for ob in context.selected_editable_objects:
+        for vg in ob.vertex_groups:
+            ob.vertex_groups.remove(vg)
+
+def replace_list_vertex_groups(context):
+    objects = context.selected_editable_objects
+    replace_list = [
+        ['thorac', "forearm.1_r"]
+    ]
+    for ob in objects:
+        for n in replace_list:
+            if n[0] in ob.vertex_groups:
+                ob.vertex_groups[n[0]].name = n[1]
+
+# SPINE RIGGING TOOLS
+#########################################################################################################################################################
 
 # Helper function for remove_constraints
 # Remove all constraints of the type on bone b
@@ -544,94 +714,12 @@ def update_spline(context, flip_start_handles, flip_end_handles, preserve_length
     bezier_points[1].handle_left = bezier_points[1].co + end_handles_dir * handle1_length_left
     bezier_points[1].handle_right = bezier_points[1].co + end_handles_dir * handle1_length_right
 
-# VERTEX GROUP TOOLS
+# MODIFIER TOOLS
 #########################################################################################################################################################
 
-# Diagnostics
-
-def check_vertex_groups(context):
-    objects = context.selected_editable_objects
-    intersect = set([vg.name for vg in objects[0].vertex_groups])
-    no_diff = True
-    for i in range(1, len(objects)):
-        intersect = intersect & set([vg.name for vg in objects[i].vertex_groups])
-    for obj in objects:
-        diff = intersect ^ set([vg.name for vg in obj.vertex_groups])
-        if len(diff) > 0:
-            no_diff = False
-            print(obj.name)
-            print(str(diff) + "\n")
-            obj.select_set(True)
-        else:
-            obj.select_set(False)
-    if no_diff:
-        print("No differences detected.")
-    print("")
-
-# Locked vertex group operations
-
-def add_locked_vertex_groups(context):
-    objects = context.selected_editable_objects    
-    locked_list = [vg.name for vg in context.view_layer.objects.active.vertex_groups if vg.lock_weight == True]
-
-    for ob in objects:
-        if ob != context.view_layer.objects.active:
-            ob_vgs = [vg.name for vg in ob.vertex_groups]
-            for vg in locked_list:
-                if vg not in ob_vgs:
-                    ob.vertex_groups.new(name=vg)
-
-def remove_locked_vertex_groups(context):
-    objects = context.selected_editable_objects
-    locked_list = [vg.name for vg in context.view_layer.objects.active.vertex_groups if vg.lock_weight == True]
-
-    for ob in objects:
-        for vg in ob.vertex_groups:
-            if vg.name in locked_list:
-                ob.vertex_groups.remove(vg)
-
-def replace_locked_vertex_groups(context):
-    objects = context.selected_editable_objects
-    locked_list = [vg for vg in context.view_layer.objects.active.vertex_groups if vg.lock_weight == True]
-
-    for ob in objects:
-        for vg in ob.vertex_groups:
-            for lvg in locked_list:
-                if vg.index == lvg.index:
-                    vg.name = lvg.name
-
-def lock_selected_vertex_groups(context):
-    objects = context.selected_editable_objects
-    locked_list = [vg.name for vg in context.view_layer.objects.active.vertex_groups if vg.lock_weight == True]
-
-    for ob in objects:
-        for vg in ob.vertex_groups:
-            if vg.name in locked_list:
-                vg.lock_weight = True
-
-# Vertex group operations
-
-def mirror_empty_vertex_groups(context):
-    objects = context.selected_editable_objects
-    for ob in objects:
-        vgs_names = [vg.name for vg in ob.vertex_groups]
-        for vg in ob.vertex_groups:
-            if vg.name[-2:] == "_r" and vg.name[:-2] + "_l" not in vgs_names:
-                ob.vertex_groups.new(name = vg.name[:-2] + "_l")
-            elif vg.name[-2] == "_l" and vg.name[:-2] + "_r" not in vgs_names:
-                ob.vertex_groups.new(name = vg.name[:-2] + "_r")
-
-def remove_vertex_groups(context):
-    for ob in context.selected_editable_objects:
-        for vg in ob.vertex_groups:
-            ob.vertex_groups.remove(vg)
-
-def replace_list_vertex_groups(context):
-    objects = context.selected_editable_objects
-    replace_list = [
-        ['thorac', "forearm.1_r"]
-    ]
-    for ob in objects:
-        for n in replace_list:
-            if n[0] in ob.vertex_groups:
-                ob.vertex_groups[n[0]].name = n[1]
+def remove_modifier(context, delete_modifier_name):
+    for o in context.selected_objects:
+        modifier = o.modifiers.get(delete_modifier_name)
+        print(delete_modifier_name + " " + str(modifier))
+        if modifier != None:
+            o.modifiers.remove(modifier)
