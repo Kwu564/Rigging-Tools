@@ -93,8 +93,8 @@ class Properties(PropertyGroup):
         description="Preserve handle lengths",
         default=False,
     )
-    rotate_start_bone: BoolProperty (
-        name="Rotate Start Bone",
+    twist_start_bone: BoolProperty (
+        name="Twist Start Bone",
         description="Allow twisting around the first bone in the spine chain",
         default=False,
     )
@@ -273,7 +273,7 @@ class OBJECT_PT_spineRiggingToolsCreation(ToolPanel):
         layout.prop(bone_tool, "bone_control_length")
         layout.prop(bone_tool, "flip_start_handles")
         layout.prop(bone_tool, "flip_end_handles")
-        layout.prop(bone_tool, "rotate_start_bone")
+        layout.prop(bone_tool, "twist_start_bone")
         layout.prop(bone_tool, "preserve_length")
         if not bone_tool.preserve_length:
             layout.prop(bone_tool, "handle_length")
@@ -525,7 +525,7 @@ class CreateSpineRig(Operator):
     def execute(self, context):
         bone_tool = context.scene.bone_tool
         from . import place_armature
-        place_armature.create_spine_rig(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.rotate_start_bone, bone_tool.preserve_length, bone_tool.handle_length, bone_tool.bone_control_length, bone_tool.start_bone_name, bone_tool.end_bone_name)
+        place_armature.create_spine_rig(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.twist_start_bone, bone_tool.preserve_length, bone_tool.handle_length, bone_tool.bone_control_length, bone_tool.start_bone_name, bone_tool.end_bone_name)
         return {"FINISHED"}
 
 class UpdateSpline(Operator):
