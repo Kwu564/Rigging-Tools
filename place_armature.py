@@ -655,6 +655,8 @@ def constrain_bones_spline(context, arm_obj, spline_obj, start_bone, end_bone):
     splineIK.xz_scale_mode = 'NONE'
 
 # Places a new curve between the selected start and end bones of a spine
+# Note: each bone in that spine between the start and end bones need to only have one child and you need to select the start and end bones in
+# pose mode
 def create_spine_rig(context, flip_start_handles, flip_end_handles, rotate_start_bone, preserve_length, handle_length, bone_control_length, start_bone_name, end_bone_name):
     arm_obj = context.object
 
