@@ -28,7 +28,10 @@ from bpy.types import (
     PropertyGroup,  
 )
 
+# PROPERTIES
+#########################################################################################################################################################
 # Specifies all properties used by the tooling methods
+
 class Properties(PropertyGroup):
     suffix_string: StringProperty (
         name="Suffix",
@@ -110,6 +113,8 @@ class Properties(PropertyGroup):
         maxlen=1024,
     )
 
+# TOOL PANELS
+#########################################################################################################################################################
 # Sepcifies the tool panels, sub panels and the labels, properties, and operators within those labelss
 # e.g. in this case a panel named rigging tools with several panels under it such as a panel named bone tools and 
 # another named vertex tools. Bone tools and vertex tools then have several more sub panels each then containing
@@ -299,8 +304,27 @@ class OBJECT_PT_removeModifier(ToolPanel):
         layout.prop(bone_tool, "delete_modifier_name")
         layout.operator("bone_tool.remove_modifier")
 
-# BONE TOOLS
+class OBJECT_PT_ObjectAlignmentTools(ToolPanel):
+    bl_parent_id = "OBJECT_PT_riggingToolsPanel"
+    bl_label = "Object Alignment Tools"
+
+    def draw(self, context):
+        return
+
+class OBJECT_PT_AlignOrigin(ToolPanel):
+    bl_parent_id = "OBJECT_PT_ObjectAlignmentTools"
+    bl_label = "Align Origin"
+
+    def draw(self, context):
+        layout = self.layout
+        bone_tool = context.scene.bone_tool
+
+        layout.label(text="Align Origins")
+        layout.operator("bone_tool.align_origin")
+
+# OPERATORS
 #########################################################################################################################################################
+# These get referenced by the tools panel
 
 # Naming
 
@@ -557,6 +581,23 @@ class RemoveModifier(Operator):
         place_armature.remove_modifier(context, bone_tool.delete_modifier_name)
         return {"FINISHED"}  
 
+# OBJECT ALIGNMENT TOOLS
+#########################################################################################################################################################
+
+# Align origin
+
+class AlignOrigin(Operator):
+    """Orient origin(s) of selected objects to face in the same direction as the active object's origin"""
+    bl_idname = "bone_tool.align_origin"
+    bl_label = "Align Origin"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        bone_tool = context.scene.bone_tool
+        from . import place_armature
+        place_armature.align_origin(context)
+        return {"FINISHED"}  
+
 classes = (
     Properties,
     OBJECT_PT_riggingToolsPanel,
@@ -577,6 +618,9 @@ classes = (
 
     OBJECT_PT_ModifierTools,
     OBJECT_PT_removeModifier,
+
+    OBJECT_PT_ObjectAlignmentTools,
+    OBJECT_PT_AlignOrigin,
 
     AddSuffix, ReplaceString,
     EnumerateBones,
@@ -605,6 +649,8 @@ classes = (
     UpdateSpline,
 
     RemoveModifier,
+
+    AlignOrigin,
 )
 
 def register():
