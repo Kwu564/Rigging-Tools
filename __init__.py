@@ -6,8 +6,8 @@ bl_info = {
 
 import importlib
 if "bpy" in locals():
-    if "place_armature" in locals():
-        importlib.reload(place_armature)
+    if "rigging_tools" in locals():
+        importlib.reload(rigging_tools)
 
 import bpy
 
@@ -165,12 +165,13 @@ class OBJECT_PT_boneToolsCreation(ToolPanel):
         layout = self.layout
         bone_tool = context.scene.bone_tool
 
-        layout.label(text="Create bones from objects")
         layout.prop(bone_tool, "tip_length")
+        layout.prop(bone_tool, "reverse_bones")
+
+        layout.label(text="Create bones from objects")
         layout.operator("bone_tool.bones_from_objects")
 
         layout.label(text="Create bones from verts")
-        layout.prop(bone_tool, "reverse_bones")
         layout.operator("bone_tool.bones_from_verts")
 
 class OBJECT_PT_boneToolsAlignment(ToolPanel):
@@ -336,8 +337,8 @@ class AddSuffix(Operator):
 
     def execute(self, context):
         bone_tool = context.scene.bone_tool
-        from . import place_armature
-        place_armature.add_suffix(context, bone_tool.suffix_string)
+        from . import rigging_tools
+        rigging_tools.add_suffix(context, bone_tool.suffix_string)
         return {"FINISHED"}
 
 class ReplaceString(Operator):
@@ -348,8 +349,8 @@ class ReplaceString(Operator):
 
     def execute(self, context):
         bone_tool = context.scene.bone_tool
-        from . import place_armature
-        place_armature.replace_string(context, bone_tool.suffix_string, bone_tool.replace_string)
+        from . import rigging_tools
+        rigging_tools.replace_string(context, bone_tool.suffix_string, bone_tool.replace_string)
         return {"FINISHED"}  
 
 class EnumerateBones(Operator):
@@ -359,8 +360,8 @@ class EnumerateBones(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from . import place_armature
-        place_armature.enumerate_bones(context)
+        from . import rigging_tools
+        rigging_tools.enumerate_bones(context)
         return {"FINISHED"}
 
 # Creation
@@ -373,8 +374,8 @@ class BonesFromObjects(Operator):
 
     def execute(self, context):
         bone_tool = context.scene.bone_tool
-        from . import place_armature
-        place_armature.bones_from_objects(context, bone_tool.tip_length)
+        from . import rigging_tools
+        rigging_tools.bones_from_objects(context, bone_tool.tip_length, bone_tool.reverse_bones)
         return {"FINISHED"}    
 
 class BonesFromVerts(Operator):
@@ -385,8 +386,8 @@ class BonesFromVerts(Operator):
 
     def execute(self, context):
         bone_tool = context.scene.bone_tool
-        from . import place_armature
-        place_armature.bones_from_verts(context, bone_tool.reverse_bones)
+        from . import rigging_tools
+        rigging_tools.bones_from_verts(context, bone_tool.tip_length, bone_tool.reverse_bones)
         return {"FINISHED"}
 
 # Alignment
@@ -399,8 +400,8 @@ class PlanarAligneBones(Operator):
 
     def execute(self, context):
         bone_tool = context.scene.bone_tool
-        from . import place_armature
-        place_armature.planar_align_bones(context, bone_tool.align_axis)
+        from . import rigging_tools
+        rigging_tools.planar_align_bones(context, bone_tool.align_axis)
         return {"FINISHED"}    
 
 class StraightenBones(Operator):
@@ -410,8 +411,8 @@ class StraightenBones(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from . import place_armature
-        place_armature.straighten_bones(context)
+        from . import rigging_tools
+        rigging_tools.straighten_bones(context)
         return {"FINISHED"}
 
 # Uncategorized
@@ -423,8 +424,8 @@ class ReapplyAutoWeights(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from . import place_armature
-        place_armature.reapply_auto_weights(context)
+        from . import rigging_tools
+        rigging_tools.reapply_auto_weights(context)
         return {"FINISHED"} 
 
 class ParentConsecutiveSelectedBones(Operator):
@@ -434,8 +435,8 @@ class ParentConsecutiveSelectedBones(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from . import place_armature
-        place_armature.parent_consecutive_selected_bones(context)
+        from . import rigging_tools
+        rigging_tools.parent_consecutive_selected_bones(context)
         return {"FINISHED"} 
 
 # VERTEX GROUP TOOLS
@@ -450,8 +451,8 @@ class CheckVertexGroups(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from . import place_armature
-        place_armature.check_vertex_groups(context)
+        from . import rigging_tools
+        rigging_tools.check_vertex_groups(context)
         return {"FINISHED"}
 
 # Locked vertex group operations
@@ -463,8 +464,8 @@ class AddLockedVertexGroups(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from . import place_armature
-        place_armature.add_locked_vertex_groups(context)
+        from . import rigging_tools
+        rigging_tools.add_locked_vertex_groups(context)
         return {"FINISHED"}
 
 class RemoveLockedVertexGroups(Operator):
@@ -474,8 +475,8 @@ class RemoveLockedVertexGroups(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from . import place_armature
-        place_armature.remove_locked_vertex_groups(context)
+        from . import rigging_tools
+        rigging_tools.remove_locked_vertex_groups(context)
         return {"FINISHED"}
 
 class ReplaceLockedVertexGroups(Operator):
@@ -485,8 +486,8 @@ class ReplaceLockedVertexGroups(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from . import place_armature
-        place_armature.replace_locked_vertex_groups(context)
+        from . import rigging_tools
+        rigging_tools.replace_locked_vertex_groups(context)
         return {"FINISHED"}  
 
 class LockSelectedVertexGroups(Operator):
@@ -496,8 +497,8 @@ class LockSelectedVertexGroups(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from . import place_armature
-        place_armature.lock_selected_vertex_groups(context)
+        from . import rigging_tools
+        rigging_tools.lock_selected_vertex_groups(context)
         return {"FINISHED"}
 
 # Vertex group operations
@@ -509,8 +510,8 @@ class MirrorEmptyVertexGroups(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from . import place_armature
-        place_armature.mirror_empty_vertex_groups(context)
+        from . import rigging_tools
+        rigging_tools.mirror_empty_vertex_groups(context)
         return {"FINISHED"} 
 
 class RemoveVertexGroups(Operator):
@@ -520,8 +521,8 @@ class RemoveVertexGroups(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from . import place_armature
-        place_armature.remove_vertex_groups(context)
+        from . import rigging_tools
+        rigging_tools.remove_vertex_groups(context)
         return {"FINISHED"}
 
 class ReplaceListVertexGroups(Operator):
@@ -531,8 +532,8 @@ class ReplaceListVertexGroups(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        from . import place_armature
-        place_armature.replace_list_vertex_groups(context)
+        from . import rigging_tools
+        rigging_tools.replace_list_vertex_groups(context)
         return {"FINISHED"}
 
 # SPINE RIGGING TOOLS
@@ -548,8 +549,8 @@ class CreateSpineRig(Operator):
 
     def execute(self, context):
         bone_tool = context.scene.bone_tool
-        from . import place_armature
-        place_armature.create_spine_rig(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.twist_start_bone, bone_tool.preserve_length, bone_tool.handle_length, bone_tool.bone_control_length, bone_tool.start_bone_name, bone_tool.end_bone_name)
+        from . import rigging_tools
+        rigging_tools.create_spine_rig(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.twist_start_bone, bone_tool.preserve_length, bone_tool.handle_length, bone_tool.bone_control_length, bone_tool.start_bone_name, bone_tool.end_bone_name)
         return {"FINISHED"}
 
 class UpdateSpline(Operator):
@@ -560,8 +561,8 @@ class UpdateSpline(Operator):
 
     def execute(self, context):
         bone_tool = context.scene.bone_tool
-        from . import place_armature
-        place_armature.update_spline(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.preserve_length, bone_tool.handle_length)
+        from . import rigging_tools
+        rigging_tools.update_spline(context, bone_tool.flip_start_handles, bone_tool.flip_end_handles, bone_tool.preserve_length, bone_tool.handle_length)
         return {"FINISHED"}    
 
 # MODIFIER TOOLS
@@ -577,8 +578,8 @@ class RemoveModifier(Operator):
 
     def execute(self, context):
         bone_tool = context.scene.bone_tool
-        from . import place_armature
-        place_armature.remove_modifier(context, bone_tool.delete_modifier_name)
+        from . import rigging_tools
+        rigging_tools.remove_modifier(context, bone_tool.delete_modifier_name)
         return {"FINISHED"}  
 
 # OBJECT ALIGNMENT TOOLS
@@ -594,8 +595,8 @@ class AlignOrigin(Operator):
 
     def execute(self, context):
         bone_tool = context.scene.bone_tool
-        from . import place_armature
-        place_armature.align_origin(context)
+        from . import rigging_tools
+        rigging_tools.align_origin(context)
         return {"FINISHED"}  
 
 classes = (

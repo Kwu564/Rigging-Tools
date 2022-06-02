@@ -76,7 +76,7 @@ def enumerate_bones(context):
 
 # Creation
 
-def bones_from_objects(context, tip_length):
+def bones_from_objects(context, tip_length, reverse):
     selected_objects = context.selected_objects
     obj = bpy.data.objects["Armature"]
     context.view_layer.objects.active = obj
@@ -84,23 +84,47 @@ def bones_from_objects(context, tip_length):
     edit_bones = obj.data.edit_bones
     bone_names = []
     mwi = obj.matrix_world.inverted()
-    for i in range(1, len(selected_objects)):
-        b = edit_bones.new("bone")
-        bone_names.append(b.name)
-        b.head = mwi @ selected_objects[i-1].matrix_world.translation
-        b.tail = mwi @ selected_objects[i].matrix_world.translation
-        if len(bone_names) >= 2:
-            edit_bones[bone_names[len(bone_names)-1]].use_connect = True
-            edit_bones[bone_names[len(bone_names)-1]].parent = edit_bones[bone_names[len(bone_names)-2]]
-        if (i+1) % 3 == 0:
-            tip = edit_bones.new("bone")
-            bone_names.append(tip.name)
-            tip.head = b.tail
-            tip.tail = tip.head + b.vector.normalized() * tip_length
-            edit_bones[bone_names[len(bone_names)-1]].use_connect = True 
-            edit_bones[bone_names[len(bone_names)-1]].parent = edit_bones[bone_names[len(bone_names)-2]]
+    # If the reverse flag is true then iterate through the selected objects backwards
+    if reverse:
+        for i in range(len(selected_objects), 1, -1):
+            print(i)
+            b = edit_bones.new("bone")
+            bone_names.append(b.name)
+            b.head = mwi @ selected_objects[i-1].matrix_world.translation
+            b.tail = mwi @ selected_objects[i-2].matrix_world.translation
+            # If the bone chain contains at least 2 bones then set the recently created bone's parent to the last created bone
+            if len(bone_names) >= 2:
+                edit_bones[bone_names[len(bone_names)-1]].use_connect = True
+                edit_bones[bone_names[len(bone_names)-1]].parent = edit_bones[bone_names[len(bone_names)-2]]
+            # Create a tip bone
+            if i == 2:
+                tip = edit_bones.new("bone")
+                bone_names.append(tip.name)
+                tip.head = b.tail
+                tip.tail = tip.head + b.vector.normalized() * tip_length
+                edit_bones[bone_names[len(bone_names)-1]].use_connect = True 
+                edit_bones[bone_names[len(bone_names)-1]].parent = edit_bones[bone_names[len(bone_names)-2]]        
+    else:
+        for i in range(1, len(selected_objects)):
+            b = edit_bones.new("bone")
+            bone_names.append(b.name)
+            b.head = mwi @ selected_objects[i-1].matrix_world.translation
+            b.tail = mwi @ selected_objects[i].matrix_world.translation
+            # If the bone chain contains at least 2 bones then set the recently created bone's parent to the last created bone
+            if len(bone_names) >= 2:
+                edit_bones[bone_names[len(bone_names)-1]].use_connect = True
+                edit_bones[bone_names[len(bone_names)-1]].parent = edit_bones[bone_names[len(bone_names)-2]]
+            # Create a tip bone
+            if i + 1 == len(selected_objects):
+                tip = edit_bones.new("bone")
+                # Place the tip bone at the root bone if the reverse flag is true otherwise place it at the tip bone
+                bone_names.append(tip.name)
+                tip.head = b.tail
+                tip.tail = tip.head + b.vector.normalized() * tip_length
+                edit_bones[bone_names[len(bone_names)-1]].use_connect = True 
+                edit_bones[bone_names[len(bone_names)-1]].parent = edit_bones[bone_names[len(bone_names)-2]]
 
-def bones_from_verts(context, reverse):
+def bones_from_verts(context, tip_length, reverse):
     mesh_obj = context.object
     mesh = mesh_obj.data
     bm = bmesh.from_edit_mesh(mesh)
