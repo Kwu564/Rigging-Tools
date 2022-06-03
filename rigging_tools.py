@@ -76,6 +76,9 @@ def enumerate_bones(context):
 
 # Creation
 
+# Creates bones from the origin of each selected object
+# NOTE: Must have an armature object names "Armature" and objects must be selected one at a time.
+# The selection order determines the direction of the bones
 def bones_from_objects(context, tip_length, reverse):
     selected_objects = context.selected_objects
     obj = bpy.data.objects["Armature"]
@@ -124,51 +127,60 @@ def bones_from_objects(context, tip_length, reverse):
                 edit_bones[bone_names[len(bone_names)-1]].use_connect = True 
                 edit_bones[bone_names[len(bone_names)-1]].parent = edit_bones[bone_names[len(bone_names)-2]]
 
+# Creates bones from each selected vertex
+# NOTE: Must have an armature object names "Armature" and vertices must be selected one at a time. Vertices must also be connected by at least one edge
+# The selection order determines the direction of the bones
 def bones_from_verts(context, tip_length, reverse):
     mesh_obj = context.object
     mesh = mesh_obj.data
     bm = bmesh.from_edit_mesh(mesh)
-    selected_verts = {v.index:v for v in bm.verts if v.select}  
-    adj_dict = {}
-    for vi in selected_verts:
-        l = list()
-        adj_dict[vi] = l
-        for e in bm.edges:
-            adj_vert = e.other_vert(selected_verts[vi])
-            if adj_vert != None and adj_vert in selected_verts.values():
-                adj_dict[vi].append(adj_vert.index)
-    #print(adj_dict)
-    obj = bpy.data.objects["Armature"]
-    context.view_layer.objects.active = obj
+    selected_verts = bm.select_history
+
+    arm_obj = bpy.data.objects["Armature"]
+    context.view_layer.objects.active = arm_obj
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    for bone in obj.data.edit_bones:
+    for bone in arm_obj.data.edit_bones:
         bone.select = False
 
-    edit_bones = obj.data.edit_bones
-    mwi = obj.matrix_world.inverted()
-    b = None
-    last_b = None
-    curr_i = 0
-    last_i = 0
-    for i in range(len(selected_verts)):
-        if i == 0:
-            v = bm.select_history.active
-            curr_i = adj_dict[v.index][0]
-            last_i = v.index 
-        else:
-            #print(curr_i)
+    edit_bones = arm_obj.data.edit_bones
+    mwi = arm_obj.matrix_world.inverted()
+    # Create bones from the vertex selection history
+    if reverse:
+        for i in range(len(selected_verts)-1, 0, -1):
             b = edit_bones.new("bone")
-            b.head = mwi @ mesh_obj.matrix_world @ selected_verts[last_i].co
-            b.tail = mwi @ mesh_obj.matrix_world @ selected_verts[curr_i].co
-            if last_b != None:
+            b.head = mwi @ mesh_obj.matrix_world @ selected_verts[i].co
+            b.tail = mwi @ mesh_obj.matrix_world @ selected_verts[i-1].co
+            if (i < (len(selected_verts)-1)):
                 b.use_connect = True
                 b.parent = last_b
             last_b = b
-            for vi in adj_dict[curr_i]:
-                if last_i != vi:
-                    last_i = curr_i
-                    curr_i = vi
-                    break
+            # Create tip bone
+            if i == 1:
+                tip = edit_bones.new("bone")
+                tip.head = b.tail
+                tip.tail = tip.head + b.vector.normalized() * tip_length
+                tip.use_connect = True
+                tip.parent = b            
+    else:
+        for i in range(len(selected_verts)-1):
+            b = edit_bones.new("bone")
+            b.head = mwi @ mesh_obj.matrix_world @ selected_verts[i].co
+            b.tail = mwi @ mesh_obj.matrix_world @ selected_verts[i+1].co
+            if (i > 1):
+                b.use_connect = True
+                b.parent = last_b
+            last_b = b
+            # Create tip bone
+            if i == (len(selected_verts)-2):
+                tip = edit_bones.new("bone")
+                tip.head = b.tail
+                tip.tail = tip.head + b.vector.normalized() * tip_length
+                tip.use_connect = True
+                tip.parent = b   
+
+    # Not going into object mode makes bone creation not undoable for some reason
+    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
 # Alignment
 
 # Align bones on a specified axis, taking in a selection that contains the start and end of the bone chain to align
